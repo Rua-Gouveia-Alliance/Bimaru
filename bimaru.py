@@ -40,6 +40,9 @@ class Board:
         self.rows = rows
         self.board = board
 
+    def __str__(self) -> str:
+        return "\n".join(map(" ".join, self.board))
+
     def get_value(self, row: int, col: int) -> str:
         """Devolve o valor na respetiva posição do tabuleiro."""
         if row < 0 or row > 9 or col < 0 or col > 9:
@@ -151,11 +154,6 @@ class Board:
             board[int(hint[0])][int(hint[1])] = hint[2]
 
         return Board(columns, rows, board)
-
-    def __str__(self) -> str:
-        return "\n".join(map(" ".join, self.board))
-
-    # TODO: outros metodos da classe
 
 
 class Bimaru(Problem):
