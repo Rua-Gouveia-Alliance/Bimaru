@@ -35,27 +35,99 @@ class BimaruState:
 class Board:
     """Representação interna de um tabuleiro de Bimaru."""
 
-    def __init__(self, columns, rows, board) -> None:
+    def __init__(self, columns: list, rows: list, board: list) -> None:
         self.columns = columns
         self.rows = rows
         self.board = board
 
     def get_value(self, row: int, col: int) -> str:
         """Devolve o valor na respetiva posição do tabuleiro."""
-        # TODO
-        pass
+        if row < 0 or row > 9 or col < 0 or col > 9:
+            return "."
+        return self.board[row][col]
 
     def adjacent_vertical_values(self, row: int, col: int) -> (str, str):
         """Devolve os valores imediatamente acima e abaixo,
         respectivamente."""
-        # TODO
-        pass
+        return (self.get_value(row - 1, col), self.get_value(row + 1, col))
 
     def adjacent_horizontal_values(self, row: int, col: int) -> (str, str):
         """Devolve os valores imediatamente à esquerda e à direita,
         respectivamente."""
-        # TODO
-        pass
+        return (self.get_value(row, col - 1), self.get_value(row, col + 1))
+
+    def fill_row(self, row: int):
+        self.board[row] = ["." for _ in range(10)]
+
+    def fill_col(self, col: int):
+        for row in self.board:
+            row[col] = "."
+
+    def fill_tile(self, row: int, col: int):
+        if self.get_value(row, col) == "0":
+            self.board[row][col] = "."
+
+    def fill_vertical(self, row: int, col: int):
+        for i in range(-1, 2, 2):
+            self.fill_tile(row - 1, col + i)
+            self.fill_tile(row, col + i)
+            self.fill_tile(row + 1, col + i)
+
+    def fill_horizontal(self, row: int, col: int):
+        for i in range(-1, 2, 2):
+            self.fill_tile(row + i, col - 1)
+            self.fill_tile(row + i, col)
+            self.fill_tile(row + i, col + 1)
+
+    def fill_blocked_circle(self, row: int, col: int):
+        self.fill_vertical(row, col)
+        self.fill_horizontal(row, col)
+
+    def fill_blocked_top(self, row: int, col: int):
+        self.fill_vertical(row, col)
+        self.fill_tile(row - 1, col)
+
+    def fill_blocked_bottom(self, row: int, col: int):
+        self.fill_vertical(row, col)
+        self.fill_tile(row + 1, col)
+
+    def fill_blocked_left(self, row: int, col: int):
+        self.fill_horizontal(row, col)
+        self.fill_tile(row, col - 1)
+
+    def fill_blocked_right(self, row: int, col: int):
+        self.fill_horizontal(row, col)
+        self.fill_tile(row, col + 1)
+
+    def fill_blocked_middle(self, row: int, col: int):
+        if self.get_value(row, col - 1) != "0" or self.get_value(row, col + 1) != "0":
+            self.fill_horizontal(row, col)
+        if self.get_value(row - 1, col) != "0" or self.get_value(row + 1, col) != "0":
+            self.fill_vertical(row, col)
+
+    def fill_blocked(self):
+        for i in range(10):
+            if self.rows[i] == 0:
+                self.fill_row(i)
+            if self.columns[i] == 0:
+                self.fill_col(i)
+
+        for i in range(10):
+            for j in range(10):
+                tile = self.board[i][j].lower()
+
+                if tile == "t":
+                    self.fill_blocked_top(i, j)
+                elif tile == "b":
+                    self.fill_blocked_bottom(i, j)
+                elif tile == "l":
+                    self.fill_blocked_left(i, j)
+                elif tile == "r":
+                    self.fill_blocked_right(i, j)
+                elif tile == "m":
+                    self.fill_blocked_middle(i, j)
+                elif tile == "c":
+                    self.fill_blocked_circle(i, j)
 
     @staticmethod
     def parse_instance():
@@ -123,6 +195,7 @@ class Bimaru(Problem):
 
 if __name__ == "__main__":
     board = Board.parse_instance()
+    board.fill_blocked()
     print(board)
     # TODO:
     # Ler o ficheiro do standard input,
