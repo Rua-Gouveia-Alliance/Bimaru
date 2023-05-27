@@ -81,10 +81,7 @@ class Board:
         return Board(columns, rows, board)
 
     def __str__(self) -> str:
-        string = ""
-        for line in self.board:
-            string += " ".join(line) + "\n"
-        return string
+        return "\n".join(map(" ".join, self.board))
 
     # TODO: outros metodos da classe
 
