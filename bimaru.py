@@ -29,22 +29,16 @@ class BimaruState:
     def __lt__(self, other):
         return self.id < other.id
 
-    def __str__(self) -> str:
-        string = ""
-        for line in self.board:
-            string += " ".join(line) + "\n"
-        return string
-
     # TODO: outros metodos da classe
 
 
 class Board:
     """Representação interna de um tabuleiro de Bimaru."""
 
-    def __init__(self, columns, rows, initialState) -> None:
+    def __init__(self, columns, rows, board) -> None:
         self.columns = columns
         self.rows = rows
-        self.state = initialState
+        self.board = board
 
     def get_value(self, row: int, col: int) -> str:
         """Devolve o valor na respetiva posição do tabuleiro."""
@@ -80,12 +74,17 @@ class Board:
         rows = lines[1].split()[1:]
         hints = [line.split()[1:] for line in lines[3:]]
 
-        board = []
+        board = [["0" for _ in columns] for _ in rows]
+        for hint in hints:
+            board[int(hint[0])][int(hint[1])] = hint[2]
 
-        return Board(columns, rows, hints)
+        return Board(columns, rows, board)
 
     def __str__(self) -> str:
-        return self.state
+        string = ""
+        for line in self.board:
+            string += " ".join(line) + "\n"
+        return string
 
     # TODO: outros metodos da classe
 
@@ -126,7 +125,8 @@ class Bimaru(Problem):
 
 
 if __name__ == "__main__":
-    Board.parse_instance()
+    board = Board.parse_instance()
+    print(board)
     # TODO:
     # Ler o ficheiro do standard input,
     # Usar uma técnica de procura para resolver a instância,
