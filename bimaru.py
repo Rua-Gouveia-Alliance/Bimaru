@@ -21,20 +21,41 @@ from search import (
 class BimaruState:
     state_id = 0
 
-    def __init__(self, board):
+    def __init__(self, board, available_sizes):
         self.board = board
-        self.board.fill_blocked()
+        self.available_sizes = available_sizes
+        try:
+            self.board.fill_blocked(self.available_sizes)
+        except:
+            self.available_sizes = []
         self.id = BimaruState.state_id
         BimaruState.state_id += 1
 
     def __lt__(self, other):
         return self.id < other.id
 
-    def result(self, action):
-        return BimaruState(self.board.place_ship(action[0], action[1]))
+    def __str__(self) -> str:
+        return self.board.__str__()
 
-    def actions(self):
-        return self.board.actions()
+    def get_board(self) -> list:
+        return self.board
+
+    def get_available_sizes(self) -> list:
+        return self.available_sizes
+
+    def result(self, action):
+        sizes = [size for size in self.available_sizes]
+        if action[0][0] == action[1][0]:
+            sizes.remove(action[1][1] - action[0][1] + 1)
+        else:
+            sizes.remove(action[1][0] - action[0][0] + 1)
+
+        return BimaruState(self.board.place_ship(action[0], action[1]), sizes)
+
+    def actions(self) -> list:
+        if not self.available_sizes:
+            return []
+        return self.board.actions(self.available_sizes)
 
     # TODO: outros metodos da classe
 
@@ -48,7 +69,19 @@ class Board:
         self.contents = contents
 
     def __str__(self) -> str:
-        return "\n".join(map(" ".join, self.contents))
+        # return "\n".join(map(" ".join, self.contents))
+        string = ""
+        for i in range(10):
+            string += " ".join(self.contents[i]) + " " + str(self.rows[i]) + "\n"
+        cols = map(str, self.columns)
+        string += " ".join(cols) + "\n"
+        return string
+
+    def row_value(self, row):
+        return self.rows[row]
+
+    def column_value(self, col):
+        return self.columns[col]
 
     def get_value(self, row: int, col: int) -> str:
         """Devolve o valor na respetiva posição do tabuleiro."""
@@ -101,11 +134,11 @@ class Board:
 
     def fill_blocked_top(self, row: int, col: int):
         self.fill_vertical(row, col)
-        self.fill_tile(row + 1, col)
+        self.fill_tile(row - 1, col)
 
     def fill_blocked_bottom(self, row: int, col: int):
         self.fill_vertical(row, col)
-        self.fill_tile(row - 1, col)
+        self.fill_tile(row + 1, col)
 
     def fill_blocked_left(self, row: int, col: int):
         self.fill_horizontal(row, col)
@@ -128,12 +161,9 @@ class Board:
         elif vertical[0] != "0" or vertical[1] != "0":
             self.fill_vertical(row, col)
 
-    def fill_blocked(self):
-        for i in range(10):
-            if self.rows[i] == 0:
-                self.fill_row(i)
-            if self.columns[i] == 0:
-                self.fill_col(i)
+    def fill_blocked(self, available_sizes):
+        free_spots_rows = [0 for _ in range(10)]
+        free_spots_cols = [0 for _ in range(10)]
 
         for i in range(10):
             for j in range(10):
@@ -150,6 +180,58 @@ class Board:
                     self.fill_blocked_middle(i, j)
                 elif tile == "c":
                     self.fill_blocked_circle(i, j)
+                elif tile == "0":
+                    free_spots_rows[i] += 1
+                    free_spots_cols[j] += 1
+
+        for i in range(10):
+            if free_spots_rows[i] == self.rows[i]:
+                j = 0
+                while j != 10:
+                    while (
+                        self.get_value(i, j) != "0"
+                        and self.get_value(i, j) != "l"
+                        and j != 10
+                    ):
+                        j += 1
+                    if j == 10:
+                        break
+
+                    k = j
+                    while self.get_value(i, k) == "0" or self.get_value(i, k) == "r":
+                        k += 1
+                    k -= 1
+                    if k - j != 0:
+                        self.place_ship([i, j], [i, k])
+                        available_sizes.remove(k - j + 1)
+                    j = k + 1
+
+            if free_spots_cols[i] == self.columns[i]:
+                j = 0
+                while j != 10:
+                    while (
+                        self.get_value(j, i) != "0"
+                        and self.get_value(j, i) != "t"
+                        and j != 10
+                    ):
+                        j += 1
+                    if j == 10:
+                        break
+
+                    k = j
+                    while self.get_value(k, i) == "0" or self.get_value(k, i) == "b":
+                        k += 1
+                    k -= 1
+                    if k - j != 0:
+                        self.place_ship([j, i], [k, i])
+                        available_sizes.remove(k - j + 1)
+                    j = k + 1
+
+            if self.rows[i] == 0:
+                self.fill_row(i)
+
+            if self.columns[i] == 0:
+                self.fill_col(i)
 
     def place_ship(self, start: list, end: list):
         contents = [[tile for tile in row] for row in self.contents]
@@ -158,28 +240,43 @@ class Board:
 
         if start[0] == end[0] and start[1] == end[1]:
             contents[start[0]][start[1]] = "c"
+            rows[start[0]] -= 1
+            columns[start[1]] -= 1
         elif start[0] == end[0]:
             contents[start[0]][start[1]] = "l"
+            rows[start[0]] -= 1
+            columns[start[1]] -= 1
             for i in range(start[1] + 1, end[1]):
                 contents[start[0]][i] = "m"
-            contents[start[0]][end[1]] = "r"
+                rows[start[0]] -= 1
+                columns[i] -= 1
+            contents[end[0]][end[1]] = "r"
+            rows[end[0]] -= 1
+            columns[end[1]] -= 1
         elif start[1] == end[1]:
             contents[start[0]][start[1]] = "t"
+            rows[start[0]] -= 1
+            columns[start[1]] -= 1
             for i in range(start[0] + 1, end[0]):
                 contents[i][start[1]] = "m"
-            contents[end[0]][start[1]] = "b"
-
+                rows[i] -= 1
+                columns[start[1]] -= 1
+            contents[end[0]][end[1]] = "b"
+            rows[end[0]] -= 1
+            columns[end[1]] -= 1
         return Board(columns, rows, contents)
 
-    def actions(self):
+    def actions(self, available_sizes):
         actions = []
 
         for i in range(10):
             # Rows
             j = 0
             while j != 10:
-                while j != 10 and (
-                    self.get_value(i, j) == "." or self.get_value(i, j) != "l"
+                while (
+                    j != 10
+                    and self.get_value(i, j) != "0"
+                    and self.get_value(i, j) != "l"
                 ):
                     j += 1
                 if j == 10:
@@ -195,7 +292,9 @@ class Board:
                         or self.get_value(i, k) == "m"
                     )
                 ):
-                    actions.append([[i, j], [i, k]])
+                    size = k - j + 1
+                    if size in available_sizes and self.rows[i] - size > -1:
+                        actions.append([[i, j], [i, k]])
                     k += 1
 
                 j += 1
@@ -205,8 +304,10 @@ class Board:
             # Columns
             j = 0
             while j != 10:
-                while j != 10 and (
-                    self.get_value(i, j) == "." or self.get_value(i, j) != "t"
+                while (
+                    j != 10
+                    and self.get_value(i, j) != "t"
+                    and self.get_value(i, j) != "0"
                 ):
                     j += 1
                 if j == 10:
@@ -222,7 +323,9 @@ class Board:
                         or self.get_value(i, k) == "m"
                     )
                 ):
-                    actions.append([[j, i], [k, i]])
+                    size = k - j + 1
+                    if size in available_sizes and self.columns[i] - size > -1:
+                        actions.append([[j, i], [k, i]])
                     k += 1
 
                 j += 1
@@ -244,18 +347,13 @@ class Board:
         """
 
         lines = sys.stdin.readlines()
-        columns = list(map(int, lines[0].split()[1:]))
-        rows = list(map(int, lines[1].split()[1:]))
+        rows = list(map(int, lines[0].split()[1:]))
+        columns = list(map(int, lines[1].split()[1:]))
         hints = [line.split()[1:] for line in lines[3:]]
 
         contents = [["0" for _ in columns] for _ in rows]
         for hint in hints:
-            row = int(hint[0])
-            col = int(hint[0])
-            contents[row][col] = hint[2]
-            if hint[2] != "W":
-                rows[row] -= 1
-                columns[col] -= 1
+            contents[int(hint[0])][int(hint[1])] = hint[2]
 
         return Board(columns, rows, contents)
 
@@ -268,23 +366,26 @@ class Bimaru(Problem):
     def actions(self, state: BimaruState):
         """Retorna uma lista de ações que podem ser executadas a
         partir do estado passado como argumento."""
-        # TODO
-        pass
+        return state.actions()
 
     def result(self, state: BimaruState, action):
         """Retorna o estado resultante de executar a 'action' sobre
         'state' passado como argumento. A ação a executar deve ser uma
         das presentes na lista obtida pela execução de
         self.actions(state)."""
-        # TODO
-        pass
+        return state.result(action)
 
     def goal_test(self, state: BimaruState):
         """Retorna True se e só se o estado passado como argumento é
         um estado objetivo. Deve verificar se todas as posições do tabuleiro
         estão preenchidas de acordo com as regras do problema."""
-        # TODO
-        pass
+        board = state.get_board()
+
+        for i in range(10):
+            if board.column_value(i) != 0 or board.row_value(i) != 0:
+                return False
+
+        return not not state.get_available_sizes()
 
     def h(self, node: Node):
         """Função heuristica utilizada para a procura A*."""
@@ -295,13 +396,23 @@ class Bimaru(Problem):
 
 
 if __name__ == "__main__":
+    initial_sizes = [1, 1, 1, 1, 2, 2, 2, 3, 3, 4]
     board = Board.parse_instance()
-    board.fill_blocked()
+    state = BimaruState(board, initial_sizes)
+    problem = Bimaru(state)
+    solution = breadth_first_tree_search(problem)
+    print(solution.state)
+    """
+    initial_sizes = [1, 1, 1, 1, 2, 2, 2, 3, 3, 4]
+    board = Board.parse_instance()
     print(board)
     print("\n")
-    print(board.actions())
-    # TODO:
-    # Ler o ficheiro do standard input,
-    # Usar uma técnica de procura para resolver a instância,
-    # Retirar a solução a partir do nó resultante,
-    # Imprimir para o standard output no formato indicado.
+    state = BimaruState(board, initial_sizes)
+    print(state)
+    print("\n")
+    print(state.actions()[0])
+    print("\n")
+    new_board = state.result(state.actions()[0])
+    print(new_board)
+    print("\n")
+    """
