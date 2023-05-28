@@ -64,11 +64,15 @@ class Board:
         return (self.get_value(row, col - 1), self.get_value(row, col + 1))
 
     def fill_row(self, row: int):
-        self.contents[row] = ["." for _ in range(10)]
+        self.contents[row] = [
+            "." if self.contents[row][i] == "0" else self.contents[row][i]
+            for i in range(10)
+        ]
 
     def fill_col(self, col: int):
-        for row in self.board:
-            row[col] = "."
+        for row in self.contents:
+            if row[col] == "0":
+                row[col] = "."
 
     def fill_tile(self, row: int, col: int):
         if self.get_value(row, col) == "0":
@@ -143,7 +147,7 @@ class Board:
                 elif tile == "c":
                     self.fill_blocked_circle(i, j)
 
-    def place_ship(self, start, ship):
+    def place_ship(self, start: list, ship: list):
         contents = [[tile for tile in row] for row in self.contents]
         rows = [value for value in self.rows]
         columns = [value for value in self.columns]
@@ -171,8 +175,8 @@ class Board:
         """
 
         lines = sys.stdin.readlines()
-        columns = lines[0].split()[1:]
-        rows = lines[1].split()[1:]
+        columns = list(map(int, lines[0].split()[1:]))
+        rows = list(map(int, lines[1].split()[1:]))
         hints = [line.split()[1:] for line in lines[3:]]
 
         contents = [["0" for _ in columns] for _ in rows]
@@ -218,6 +222,10 @@ class Bimaru(Problem):
 
 if __name__ == "__main__":
     board = Board.parse_instance()
+    board.fill_blocked()
+    print(board)
+    print("\n")
+    print(board.place_ship([0, 2], [["l", "m", "r"]]))
     # TODO:
     # Ler o ficheiro do standard input,
     # Usar uma técnica de procura para resolver a instância,
