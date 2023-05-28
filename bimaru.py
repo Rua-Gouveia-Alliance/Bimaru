@@ -33,6 +33,9 @@ class BimaruState:
     def result(self, action):
         return BimaruState(self.board.place_ship(action[0], action[1]))
 
+    def actions(self):
+        return self.board.actions()
+
     # TODO: outros metodos da classe
 
 
@@ -51,7 +54,9 @@ class Board:
         """Devolve o valor na respetiva posição do tabuleiro."""
         if row < 0 or row > 9 or col < 0 or col > 9:
             return "."
-        return self.contents[row][col]
+        if self.contents[row][col] == "W":
+            return "."
+        return self.contents[row][col].lower()
 
     def adjacent_vertical_values(self, row: int, col: int) -> (str, str):
         """Devolve os valores imediatamente acima e abaixo,
@@ -96,11 +101,11 @@ class Board:
 
     def fill_blocked_top(self, row: int, col: int):
         self.fill_vertical(row, col)
-        self.fill_tile(row - 1, col)
+        self.fill_tile(row + 1, col)
 
     def fill_blocked_bottom(self, row: int, col: int):
         self.fill_vertical(row, col)
-        self.fill_tile(row + 1, col)
+        self.fill_tile(row - 1, col)
 
     def fill_blocked_left(self, row: int, col: int):
         self.fill_horizontal(row, col)
@@ -132,8 +137,7 @@ class Board:
 
         for i in range(10):
             for j in range(10):
-                tile = self.contents[i][j].lower()
-
+                tile = self.get_value(i, j)
                 if tile == "t":
                     self.fill_blocked_top(i, j)
                 elif tile == "b":
@@ -147,20 +151,85 @@ class Board:
                 elif tile == "c":
                     self.fill_blocked_circle(i, j)
 
-    def place_ship(self, start: list, ship: list):
+    def place_ship(self, start: list, end: list):
         contents = [[tile for tile in row] for row in self.contents]
         rows = [value for value in self.rows]
         columns = [value for value in self.columns]
-        height = len(ship)
-        width = len(ship[0])
 
-        for i in range(height):
-            for j in range(width):
-                contents[start[0] + i][start[1] + j] = ship[i][j]
-                rows[start[0] + i] -= 1
-                columns[start[1] + j] -= 1
+        if start[0] == end[0] and start[1] == end[1]:
+            contents[start[0]][start[1]] = "c"
+        elif start[0] == end[0]:
+            contents[start[0]][start[1]] = "l"
+            for i in range(start[1] + 1, end[1]):
+                contents[start[0]][i] = "m"
+            contents[start[0]][end[1]] = "r"
+        elif start[1] == end[1]:
+            contents[start[0]][start[1]] = "t"
+            for i in range(start[0] + 1, end[0]):
+                contents[i][start[1]] = "m"
+            contents[end[0]][start[1]] = "b"
 
         return Board(columns, rows, contents)
+
+    def actions(self):
+        actions = []
+
+        for i in range(10):
+            # Rows
+            j = 0
+            while j != 10:
+                while j != 10 and (
+                    self.get_value(i, j) == "." or self.get_value(i, j) != "l"
+                ):
+                    j += 1
+                if j == 10:
+                    break
+
+                k = j
+                while (
+                    k != 10
+                    and k - j != 4
+                    and (
+                        self.get_value(i, k) == "0"
+                        or self.get_value(i, k) == "r"
+                        or self.get_value(i, k) == "m"
+                    )
+                ):
+                    actions.append([[i, j], [i, k]])
+                    k += 1
+
+                j += 1
+                if self.get_value(i, j) == "l":
+                    j += 1
+
+            # Columns
+            j = 0
+            while j != 10:
+                while j != 10 and (
+                    self.get_value(i, j) == "." or self.get_value(i, j) != "t"
+                ):
+                    j += 1
+                if j == 10:
+                    break
+
+                k = j
+                while (
+                    k != 10
+                    and k - j != 4
+                    and (
+                        self.get_value(i, j) == "0"
+                        or self.get_value(i, j) == "b"
+                        or self.get_value(i, k) == "m"
+                    )
+                ):
+                    actions.append([[j, i], [k, i]])
+                    k += 1
+
+                j += 1
+                if self.get_value(i, j) == "t":
+                    j += 1
+
+        return actions
 
     @staticmethod
     def parse_instance():
@@ -181,7 +250,12 @@ class Board:
 
         contents = [["0" for _ in columns] for _ in rows]
         for hint in hints:
-            contents[int(hint[0])][int(hint[1])] = hint[2]
+            row = int(hint[0])
+            col = int(hint[0])
+            contents[row][col] = hint[2]
+            if hint[2] != "W":
+                rows[row] -= 1
+                columns[col] -= 1
 
         return Board(columns, rows, contents)
 
@@ -225,7 +299,7 @@ if __name__ == "__main__":
     board.fill_blocked()
     print(board)
     print("\n")
-    print(board.place_ship([0, 2], [["l", "m", "r"]]))
+    print(board.actions())
     # TODO:
     # Ler o ficheiro do standard input,
     # Usar uma técnica de procura para resolver a instância,
