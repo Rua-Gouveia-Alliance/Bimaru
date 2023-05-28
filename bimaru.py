@@ -23,11 +23,15 @@ class BimaruState:
 
     def __init__(self, board):
         self.board = board
+        self.board.fill_blocked()
         self.id = BimaruState.state_id
         BimaruState.state_id += 1
 
     def __lt__(self, other):
         return self.id < other.id
+
+    def result(self, action):
+        return BimaruState(self.board.place_ship(action[0], action[1]))
 
     # TODO: outros metodos da classe
 
@@ -35,19 +39,19 @@ class BimaruState:
 class Board:
     """Representação interna de um tabuleiro de Bimaru."""
 
-    def __init__(self, columns: list, rows: list, board: list) -> None:
+    def __init__(self, columns: list, rows: list, contents: list) -> None:
         self.columns = columns
         self.rows = rows
-        self.board = board
+        self.contents = contents
 
     def __str__(self) -> str:
-        return "\n".join(map(" ".join, self.board))
+        return "\n".join(map(" ".join, self.contents))
 
     def get_value(self, row: int, col: int) -> str:
         """Devolve o valor na respetiva posição do tabuleiro."""
         if row < 0 or row > 9 or col < 0 or col > 9:
             return "."
-        return self.board[row][col]
+        return self.contents[row][col]
 
     def adjacent_vertical_values(self, row: int, col: int) -> (str, str):
         """Devolve os valores imediatamente acima e abaixo,
@@ -60,7 +64,7 @@ class Board:
         return (self.get_value(row, col - 1), self.get_value(row, col + 1))
 
     def fill_row(self, row: int):
-        self.board[row] = ["." for _ in range(10)]
+        self.contents[row] = ["." for _ in range(10)]
 
     def fill_col(self, col: int):
         for row in self.board:
@@ -68,7 +72,7 @@ class Board:
 
     def fill_tile(self, row: int, col: int):
         if self.get_value(row, col) == "0":
-            self.board[row][col] = "."
+            self.contents[row][col] = "."
 
     def fill_vertical(self, row: int, col: int):
         for i in range(-1, 2, 2):
@@ -103,9 +107,16 @@ class Board:
         self.fill_tile(row, col + 1)
 
     def fill_blocked_middle(self, row: int, col: int):
-        if self.get_value(row, col - 1) != "0" or self.get_value(row, col + 1) != "0":
+        vertical = self.adjacent_vertical_values(row, col)
+        horizontal = self.adjacent_horizontal_values(row, col)
+
+        if horizontal[0] == "." or horizontal[1] == ".":
+            self.fill_vertical(row, col)
+        elif vertical[0] == "." or vertical[1] == ".":
             self.fill_horizontal(row, col)
-        if self.get_value(row - 1, col) != "0" or self.get_value(row + 1, col) != "0":
+        elif horizontal[0] != "0" or horizontal[1] != "0":
+            self.fill_horizontal(row, col)
+        elif vertical[0] != "0" or vertical[1] != "0":
             self.fill_vertical(row, col)
 
     def fill_blocked(self):
@@ -117,7 +128,7 @@ class Board:
 
         for i in range(10):
             for j in range(10):
-                tile = self.board[i][j].lower()
+                tile = self.contents[i][j].lower()
 
                 if tile == "t":
                     self.fill_blocked_top(i, j)
@@ -131,6 +142,21 @@ class Board:
                     self.fill_blocked_middle(i, j)
                 elif tile == "c":
                     self.fill_blocked_circle(i, j)
+
+    def place_ship(self, start, ship):
+        contents = [[tile for tile in row] for row in self.contents]
+        rows = [value for value in self.rows]
+        columns = [value for value in self.columns]
+        height = len(ship)
+        width = len(ship[0])
+
+        for i in range(height):
+            for j in range(width):
+                contents[start[0] + i][start[1] + j] = ship[i][j]
+                rows[start[0] + i] -= 1
+                columns[start[1] + j] -= 1
+
+        return Board(columns, rows, contents)
 
     @staticmethod
     def parse_instance():
@@ -149,18 +175,17 @@ class Board:
         rows = lines[1].split()[1:]
         hints = [line.split()[1:] for line in lines[3:]]
 
-        board = [["0" for _ in columns] for _ in rows]
+        contents = [["0" for _ in columns] for _ in rows]
         for hint in hints:
-            board[int(hint[0])][int(hint[1])] = hint[2]
+            contents[int(hint[0])][int(hint[1])] = hint[2]
 
-        return Board(columns, rows, board)
+        return Board(columns, rows, contents)
 
 
 class Bimaru(Problem):
-    def __init__(self, board: Board):
+    def __init__(self, initial: BimaruState):
         """O construtor especifica o estado inicial."""
-        # TODO
-        pass
+        super().__init__(initial)
 
     def actions(self, state: BimaruState):
         """Retorna uma lista de ações que podem ser executadas a
@@ -193,8 +218,6 @@ class Bimaru(Problem):
 
 if __name__ == "__main__":
     board = Board.parse_instance()
-    board.fill_blocked()
-    print(board)
     # TODO:
     # Ler o ficheiro do standard input,
     # Usar uma técnica de procura para resolver a instância,
