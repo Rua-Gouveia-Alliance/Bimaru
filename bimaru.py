@@ -16,7 +16,6 @@ class BimaruState:
 
     def __init__(self, board, ships):
         self.board = board
-        board.fill_blocked()
         self.ships = ships
         self.id = BimaruState.state_id
         BimaruState.state_id += 1
@@ -25,7 +24,7 @@ class BimaruState:
         return self.id < other.id
 
     def __str__(self) -> str:
-        tiles = self.board.tiles.copy()
+        tiles = Tiles(self.board.cols, self.board.rows, self.board.placed).tiles
         for hint in self.board.hints:
             tiles[hint[0], hint[1]] = hint[2].upper()
 
@@ -35,25 +34,11 @@ class BimaruState:
 class Board:
     """Representação interna de um tabuleiro de Bimaru."""
 
-    def __init__(self, cols: list, rows: list, tiles: list, hints: list) -> None:
+    def __init__(self, cols: list, rows: list, placed: list, hints: list) -> None:
         self.cols = cols
         self.rows = rows
-        self.tiles = tiles
+        self.placed = placed
         self.hints = hints
-
-    def fill_row(self, row: int):
-        self.tiles[row, :][self.tiles[row, :] == "0"] = "."
-
-    def fill_col(self, col: int):
-        self.tiles[:, col][self.tiles[:, col] == "0"] = "."
-
-    def fill_blocked(self):
-        for i in range(10):
-            if self.cols[i] == 0:
-                self.fill_col(i)
-
-            if self.rows[i] == 0:
-                self.fill_row(i)
 
     @staticmethod
     def parse_instance():
@@ -69,11 +54,62 @@ class Board:
         lines = sys.stdin.readlines()
         rows = np.array(list(map(int, lines[0].split()[1:])))
         columns = np.array(list(map(int, lines[1].split()[1:])))
-        tiles = np.full((10, 10), "0", dtype=str)
         convert = lambda x: (int(x[0]), int(x[1]), x[2].lower())
         hints = [convert(line.split()[1:]) for line in lines[3:]]
 
-        return Board(columns, rows, tiles, hints)
+        return Board(columns, rows, [], hints)
+
+
+class Tiles:
+    def __init__(self, cols: list, rows: list, placed: list) -> None:
+        self.tiles = np.full((10, 10), "0")
+        self.fill_blocked(cols, rows)
+        for ship in placed:
+            self.draw(ship)
+
+    def fill_row(self, row: int):
+        self.tiles[row, :][self.tiles[row, :] == "0"] = "."
+
+    def fill_col(self, col: int):
+        self.tiles[:, col][self.tiles[:, col] == "0"] = "."
+
+    def fill_blocked(self, cols: list, rows: list):
+        for i in range(10):
+            if cols[i] == 0:
+                self.fill_col(i)
+
+            if rows[i] == 0:
+                self.fill_row(i)
+
+    def fill_ship_area(self, action: list):
+        start = action[0]
+        end = action[1]
+
+        min_col = max(start[1] - 1, 0)
+        min_row = max(start[0] - 1, 0)
+        max_col = min(end[1] + 1, 9)
+        max_row = min(end[0] + 1, 9)
+
+        self.tiles[min_row : max_row + 1, min_col : max_col + 1] = "."
+
+    def draw(self, action: list):
+        start = action[0]
+        end = action[1]
+
+        self.fill_ship_area(action)
+
+        if start[0] == end[0] and start[1] == end[1]:
+            self.tiles[start[0], start[1]] = "c"
+
+        elif start[0] == end[0]:
+            self.tiles[start[0], start[1]] = "l"
+            self.tiles[start[0], start[1] + 1 : end[1]] = "m"
+            self.tiles[end[0], end[1]] = "r"
+
+        elif start[1] == end[1]:
+            self.tiles[start[0], start[1]] = "t"
+            self.tiles[start[0] + 1 : end[0], start[1]] = "m"
+            self.tiles[end[0], end[1]] = "b"
 
 
 class Bimaru(Problem):
@@ -87,7 +123,7 @@ class Bimaru(Problem):
         partir do estado passado como argumento."""
         actions = []
         board = state.board
-        tiles = state.board.tiles
+        tiles = Tiles(state.board.cols, state.board.rows, state.board.placed).tiles
         target_size = max(state.ships)
 
         if not state.ships:
@@ -126,17 +162,6 @@ class Bimaru(Problem):
 
         return actions
 
-    def fill_ship_area(self, tiles: list, action: list):
-        start = action[0]
-        end = action[1]
-
-        min_col = max(start[1] - 1, 0)
-        min_row = max(start[0] - 1, 0)
-        max_col = min(end[1] + 1, 9)
-        max_row = min(end[0] + 1, 9)
-
-        tiles[min_row : max_row + 1, min_col : max_col + 1] = "."
-
     def result(self, state: BimaruState, action: list):
         """Retorna o estado resultante de executar a 'action' sobre
         'state' passado como argumento. A ação a executar deve ser uma
@@ -145,37 +170,28 @@ class Bimaru(Problem):
         start = action[0]
         end = action[1]
 
-        tiles = state.board.tiles.copy()
+        placed = state.board.placed.copy()
         rows = state.board.rows.copy()
         cols = state.board.cols.copy()
         ships = state.ships.copy()
-        self.fill_ship_area(tiles, action)
 
+        placed.append(action)
         if start[0] == end[0] and start[1] == end[1]:
-            tiles[start[0], start[1]] = "c"
             rows[start[0]] -= 1
             cols[start[1]] -= 1
             ships.remove(1)
 
         elif start[0] == end[0]:
-            tiles[start[0], start[1]] = "l"
-            tiles[start[0], start[1] + 1 : end[1]] = "m"
-            tiles[end[0], end[1]] = "r"
-
             rows[start[0]] -= end[1] - start[1] + 1
             cols[start[1] : end[1] + 1] -= 1
             ships.remove(end[1] - start[1] + 1)
 
         elif start[1] == end[1]:
-            tiles[start[0], start[1]] = "t"
-            tiles[start[0] + 1 : end[0], start[1]] = "m"
-            tiles[end[0], end[1]] = "b"
-
             rows[start[0] : end[0] + 1] -= 1
             cols[start[1]] -= end[0] - start[0] + 1
             ships.remove(end[0] - start[0] + 1)
 
-        new_board = Board(cols, rows, tiles, state.board.hints)
+        new_board = Board(cols, rows, placed, state.board.hints)
         return BimaruState(new_board, ships)
 
     def goal_test(self, state: BimaruState):
@@ -183,8 +199,8 @@ class Bimaru(Problem):
         um estado objetivo. Deve verificar se todas as posições do tabuleiro
         estão preenchidas de acordo com as regras do problema."""
 
-        tiles = state.board.tiles
         hints = state.board.hints
+        tiles = Tiles(state.board.cols, state.board.rows, state.board.placed).tiles
 
         for i in range(10):
             if state.board.rows[i] != 0 or state.board.cols[i] != 0:
