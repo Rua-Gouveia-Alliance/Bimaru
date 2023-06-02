@@ -8,7 +8,15 @@
 
 import sys
 import numpy as np
-from search import Problem, Node, breadth_first_tree_search, astar_search
+from search import (
+    Problem,
+    Node,
+    astar_search,
+    breadth_first_tree_search,
+    depth_first_tree_search,
+    greedy_search,
+    recursive_best_first_search,
+)
 
 
 class BimaruState:
@@ -54,6 +62,20 @@ class Board:
 
             if self.rows[i] == 0:
                 self.fill_row(i)
+
+    def get_value(self, row: int, col: int) -> str:
+        """Devolve o valor na respetiva posição do tabuleiro."""
+        return self.tiles[row, col]
+
+    def adjacent_vertical_values(self, row: int, col: int) -> (str, str):
+        """Devolve os valores imediatamente acima e abaixo,
+        respectivamente."""
+        return (self.tiles[row - 1, col], self.tiles[row + 1, col])
+
+    def adjacent_horizontal_values(self, row: int, col: int) -> (str, str):
+        """Devolve os valores imediatamente à esquerda e à direita,
+        respectivamente."""
+        return (self.tiles[row, col - 1], self.tiles[row, col + 1])
 
     @staticmethod
     def parse_instance():
@@ -105,7 +127,7 @@ class Bimaru(Problem):
             for j in range(10):
                 if row[j] == "0":
                     k = j
-                    size = k - j + 1
+                    size = 1
                     while k < 10 and row[k] == "0" and size <= target_size:
                         if size <= board.rows[i] and size == target_size:
                             actions.append([[i, j], [i, k]])
@@ -117,7 +139,7 @@ class Bimaru(Problem):
             for j in range(10):
                 if col[j] == "0":
                     k = j
-                    size = k - j + 1
+                    size = 1
                     while k < 10 and col[k] == "0" and size <= target_size:
                         if size <= board.cols[i] and size == target_size:
                             actions.append([[j, i], [k, i]])
@@ -198,10 +220,17 @@ class Bimaru(Problem):
                 return False
 
         return not state.ships
+    
+    def h(self, node: Node):
+        """Função heuristica utilizada para a procura A*."""
+        # TODO
+        pass
 
 
 if __name__ == "__main__":
     board = Board.parse_instance()
     problem = Bimaru(board)
-    solution = breadth_first_tree_search(problem)
+    solution = depth_first_tree_search(problem)
+    if solution is None:
+        exit(0)
     print(solution.state)
