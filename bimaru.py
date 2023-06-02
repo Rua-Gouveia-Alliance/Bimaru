@@ -85,13 +85,13 @@ class Bimaru(Problem):
     def actions(self, state: BimaruState):
         """Retorna uma lista de ações que podem ser executadas a
         partir do estado passado como argumento."""
+        if not state.ships:
+            return []
+
         actions = []
         board = state.board
         tiles = state.board.tiles
         target_size = max(state.ships)
-
-        if not state.ships:
-            return []
 
         for hint in state.board.hints:
             if hint[2] == "w":
