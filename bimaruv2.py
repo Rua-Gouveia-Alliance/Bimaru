@@ -3,11 +3,11 @@
 # Além das funções e classes já definidas, podem acrescentar outras que considerem pertinentes.
 
 # Grupo 93:
-# 102611 João Gouveia
 # 102604 Gonçalo Rua
+# 102611 João Gouveia
 
 import sys
-import numpy as np
+import copy
 from search import (
     Problem,
     Node,
@@ -22,15 +22,8 @@ from search import (
 class BimaruState:
     state_id = 0
 
-    def __init__(self, board, ships):
-        # setup board
+    def __init__(self, board):
         self.board = board
-        board.fill_blocked()
-
-        # remaining ships
-        self.ships = ships
-
-        # id
         self.id = BimaruState.state_id
         BimaruState.state_id += 1
 
@@ -38,9 +31,9 @@ class BimaruState:
         return self.id < other.id
 
     def __str__(self) -> str:
-        tiles = self.board.tiles.copy()
+        tiles = copy.deepcopy(self.board.tiles)
         for hint in self.board.hints:
-            tiles[hint[0], hint[1]] = hint[2].upper()
+            tiles[hint[0]][hint[1]] = hint[2].upper()
 
         return "\n".join(map("".join, tiles))
 
@@ -48,17 +41,23 @@ class BimaruState:
 class Board:
     """Representação interna de um tabuleiro de Bimaru."""
 
-    def __init__(self, cols: list, rows: list, tiles: list, hints: list) -> None:
+    def __init__(self, cols, rows, tiles, hints, ships):
         self.cols = cols
         self.rows = rows
         self.tiles = tiles
         self.hints = hints
+        self.ships = ships
+        self.fill_blocked()
 
     def fill_row(self, row: int):
-        self.tiles[row, :][self.tiles[row, :] == "0"] = "."
+        for j in range(10):
+            if self.tiles[row][j] == "0":
+                self.tiles[row][j] = "."
 
     def fill_col(self, col: int):
-        self.tiles[:, col][self.tiles[:, col] == "0"] = "."
+        for i in range(10):
+            if self.tiles[i][col] == "0":
+                self.tiles[i][col] = "."
 
     def fill_blocked(self):
         for i in range(10):
@@ -70,17 +69,17 @@ class Board:
 
     def get_value(self, row: int, col: int) -> str:
         """Devolve o valor na respetiva posição do tabuleiro."""
-        return self.tiles[row, col]
+        return self.tiles[row][col]
 
     def adjacent_vertical_values(self, row: int, col: int) -> (str, str):
         """Devolve os valores imediatamente acima e abaixo,
         respectivamente."""
-        return (self.tiles[row - 1, col], self.tiles[row + 1, col])
+        return (self.tiles[row - 1][col], self.tiles[row + 1][col])
 
     def adjacent_horizontal_values(self, row: int, col: int) -> (str, str):
         """Devolve os valores imediatamente à esquerda e à direita,
         respectivamente."""
-        return (self.tiles[row, col - 1], self.tiles[row, col + 1])
+        return (self.tiles[row][col - 1], self.tiles[row][col + 1])
 
     @staticmethod
     def parse_instance():
@@ -94,67 +93,75 @@ class Board:
             > line = stdin.readline().split()
         """
         lines = sys.stdin.readlines()
-        rows = np.array(list(map(int, lines[0].split()[1:])))
-        columns = np.array(list(map(int, lines[1].split()[1:])))
-        tiles = np.full((10, 10), "0", dtype=str)
-        convert = lambda x: (int(x[0]), int(x[1]), x[2].lower())
-        hints = [convert(line.split()[1:]) for line in lines[3:]]
+        rows = list(map(int, lines[0].split()[1:]))
+        cols = list(map(int, lines[1].split()[1:]))
+        tiles = [ ["0"]*10 for i in range(10)]
+        hints = []
+        for line in lines[3:]:
+            components = line.split()[1:]
+            new_tuple = (int(components[0]), int(components[1]), components[2].lower())
+            hints.append(new_tuple)
 
-        return Board(columns, rows, tiles, hints)
+        ships = [1, 1, 1, 1, 2, 2, 2, 3, 3, 4]
+        return Board(cols, rows, tiles, hints, ships)
 
 
 class Bimaru(Problem):
-
     def __init__(self, board: Board):
         """O construtor especifica o estado inicial."""
-        ships = [1, 1, 1, 1, 2, 2, 2, 3, 3, 4]
-        super().__init__(BimaruState(board, ships))
+        super().__init__(BimaruState(board))
 
     def actions(self, state: BimaruState):
         """Retorna uma lista de ações que podem ser executadas a
         partir do estado passado como argumento."""
-        if not state.ships:
+        actions = []
+
+        board = state.board
+        tiles = board.tiles
+        ships = board.ships
+        if not ships:
             return []
 
-        actions = []
-        board = state.board
-        tiles = state.board.tiles
-        target_size = max(state.ships)
+        target_size = max(ships)
 
         for hint in state.board.hints:
             if hint[2] == "w":
-                if tiles[hint[0], hint[1]] != "." and tiles[hint[0], hint[1]] != "0":
+                if tiles[hint[0]][hint[1]] != "." and tiles[hint[0]][hint[1]] != "0":
                     return []
-            elif tiles[hint[0], hint[1]] != hint[2] and tiles[hint[0], hint[1]] != "0":
+            elif tiles[hint[0]][hint[1]] != hint[2] and tiles[hint[0]][hint[1]] != "0":
                 return []
 
         for i in range(10):
-            row = tiles[i]
             for j in range(10):
-                if row[j] == "0":
+                if tiles[i][j] == "0":
                     k = j
                     size = 1
-                    while k < 10 and row[k] == "0" and size <= target_size:
+                    while k < 10 and tiles[i][k] == "0" and size <= target_size:
+                        not_wanted = [(i, k, "w"), (i, k, "c"), (i, k, "t"), (i, k, "b")]
+                        if (i, k, tiles[i][k]) in not_wanted:
+                            break
                         if size <= board.rows[i] and size == target_size:
-                            actions.append([[i, j], [i, k]])
+                            actions.append(((i, j), (i, k)))
                         size += 1
                         k += 1
 
         for i in range(10):
-            col = tiles[:, i]
             for j in range(10):
-                if col[j] == "0":
+                if tiles[j][i] == "0":
                     k = j
                     size = 1
-                    while k < 10 and col[k] == "0" and size <= target_size:
+                    while k < 10 and tiles[k][i] == "0" and size <= target_size:
+                        not_wanted = [(i, k, "w"), (i, k, "c"), (i, k, "l"), (i, k, "r")]
+                        if (k, i, tiles[k][i]) in not_wanted:
+                            break
                         if size <= board.cols[i] and size == target_size:
-                            actions.append([[j, i], [k, i]])
+                            actions.append(((j, i), (k, i)))
                         size += 1
                         k += 1
 
         return actions
 
-    def fill_ship_area(self, tiles: list, action: list):
+    def fill_ship_area(self, tiles, action):
         start = action[0]
         end = action[1]
 
@@ -163,9 +170,11 @@ class Bimaru(Problem):
         max_col = min(end[1] + 1, 9)
         max_row = min(end[0] + 1, 9)
 
-        tiles[min_row : max_row + 1, min_col : max_col + 1] = "."
+        for i in range(min_row, max_row + 1):
+            for j in range(min_col, max_col + 1):
+                tiles[i][j] = "."
 
-    def result(self, state: BimaruState, action: list):
+    def result(self, state: BimaruState, action):
         """Retorna o estado resultante de executar a 'action' sobre
         'state' passado como argumento. A ação a executar deve ser uma
         das presentes na lista obtida pela execução de
@@ -173,46 +182,50 @@ class Bimaru(Problem):
         start = action[0]
         end = action[1]
 
-        tiles = state.board.tiles.copy()
-        rows = state.board.rows.copy()
-        cols = state.board.cols.copy()
-        ships = state.ships.copy()
+        board = state.board
+
+        tiles = copy.deepcopy(board.tiles)
+        rows = board.rows.copy()
+        cols = board.cols.copy()
+        ships = board.ships.copy()
         self.fill_ship_area(tiles, action)
 
         if start[0] == end[0] and start[1] == end[1]:
-            tiles[start[0], start[1]] = "c"
+            tiles[start[0]][start[1]] = "c"
             rows[start[0]] -= 1
             cols[start[1]] -= 1
             ships.remove(1)
-
         elif start[0] == end[0]:
-            tiles[start[0], start[1]] = "l"
-            tiles[start[0], start[1] + 1 : end[1]] = "m"
-            tiles[end[0], end[1]] = "r"
+            tiles[start[0]][start[1]] = "l"
+            for j in range(start[1] + 1, end[1]):
+                tiles[start[0]][j] = "m"
+            tiles[end[0]][end[1]] = "r"
 
             rows[start[0]] -= end[1] - start[1] + 1
-            cols[start[1] : end[1] + 1] -= 1
+            for i in range(start[1], end[1] + 1):
+                cols[i] -= 1
             ships.remove(end[1] - start[1] + 1)
-
         elif start[1] == end[1]:
-            tiles[start[0], start[1]] = "t"
-            tiles[start[0] + 1 : end[0], start[1]] = "m"
-            tiles[end[0], end[1]] = "b"
+            tiles[start[0]][start[1]] = "t"
+            for i in range(start[0] + 1, end[0]):
+                tiles[i][start[1]] = "m"
+            tiles[end[0]][end[1]] = "b"
 
-            rows[start[0] : end[0] + 1] -= 1
+            for i in range(start[0], end[0] + 1):
+                rows[i] -= 1
             cols[start[1]] -= end[0] - start[0] + 1
             ships.remove(end[0] - start[0] + 1)
 
-        new_board = Board(cols, rows, tiles, state.board.hints)
-        return BimaruState(new_board, ships)
+        new_board = Board(cols, rows, tiles, board.hints, ships)
+        return BimaruState(new_board)
 
     def goal_test(self, state: BimaruState):
         """Retorna True se e só se o estado passado como argumento é
         um estado objetivo. Deve verificar se todas as posições do tabuleiro
         estão preenchidas de acordo com as regras do problema."""
-
-        tiles = state.board.tiles
-        hints = state.board.hints
+        board = state.board
+        tiles = board.tiles
+        hints = board.hints
 
         for i in range(10):
             if state.board.rows[i] != 0 or state.board.cols[i] != 0:
@@ -220,12 +233,12 @@ class Bimaru(Problem):
 
         for hint in hints:
             if hint[2] == "w":
-                if tiles[hint[0], hint[1]] != "." and tiles[hint[0], hint[1]] != "0":
+                if tiles[hint[0]][hint[1]] != "." and tiles[hint[0]][hint[1]] != "0":
                     return False
-            elif tiles[hint[0], hint[1]] != hint[2]:
+            elif tiles[hint[0]][hint[1]] != hint[2]:
                 return False
 
-        return not state.ships
+        return not board.ships
 
 
 if __name__ == "__main__":
@@ -234,4 +247,3 @@ if __name__ == "__main__":
     solution = depth_first_tree_search(problem)
     if solution is not None:
         print(solution.state)
-
