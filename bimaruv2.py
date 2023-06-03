@@ -137,6 +137,9 @@ class Bimaru(Problem):
                     k = j
                     size = 1
                     while k < 10 and tiles[i][k] == "0" and size <= target_size:
+                        not_wanted = [(i, k, "w"), (i, k, "c"), (i, k, "t"), (i, k, "b")]
+                        if (i, k, tiles[i][k]) in not_wanted:
+                            break
                         if size <= board.rows[i] and size == target_size:
                             actions.append(((i, j), (i, k)))
                         size += 1
@@ -148,6 +151,9 @@ class Bimaru(Problem):
                     k = j
                     size = 1
                     while k < 10 and tiles[k][i] == "0" and size <= target_size:
+                        not_wanted = [(i, k, "w"), (i, k, "c"), (i, k, "l"), (i, k, "r")]
+                        if (k, i, tiles[k][i]) in not_wanted:
+                            break
                         if size <= board.cols[i] and size == target_size:
                             actions.append(((j, i), (k, i)))
                         size += 1
