@@ -7,6 +7,7 @@
 # 102604 Gonçalo Rua
 
 import sys
+import copy
 import numpy as np
 from search import (
     Problem,
@@ -38,7 +39,7 @@ class BimaruState:
         return self.id < other.id
 
     def __str__(self) -> str:
-        tiles = self.board.tiles.copy()
+        tiles = copy.deepcopy(self.board.tiles)
         for hint in self.board.hints:
             tiles[hint[0], hint[1]] = hint[2].upper()
 
@@ -114,7 +115,7 @@ class Bimaru(Problem):
             return [el]
         combinations = []
         for i in range(len(array)):
-            new_el = el.copy()
+            new_el = copy.deepcopy(el)
             new_el.append(array[i])
             combinations += self.get_combinations(array[i + 1 :], n, new_el)
         return combinations
@@ -180,21 +181,6 @@ class Bimaru(Problem):
 
         return possible_actions
 
-    def possible_ships(
-        self, tiles: list, max_ships: int, target_size: int, create_action
-    ) -> list:
-        ships = []
-        for j in range(10):
-            if tiles[j] == "0":
-                k = j
-                size = 1
-                while k < 10 and tiles[k] == "0" and size <= target_size:
-                    if size <= max_ships and size == target_size:
-                        ships.append(create_action(j, k))
-                    size += 1
-                    k += 1
-        return ships
-
     def actions(self, state: BimaruState):
         """Retorna uma lista de ações que podem ser executadas a
         partir do estado passado como argumento."""
@@ -215,16 +201,34 @@ class Bimaru(Problem):
                 return []
 
         for i in range(10):
-            horz = lambda j, k: [[i, j], [i, k]]
-            ships += self.possible_ships(tiles[i], board.rows[i], target_size, horz)
-            vert = lambda j, k: [[j, i], [k, i]]
-            ships += self.possible_ships(tiles[:, i], board.cols[i], target_size, vert)
+            row = tiles[i]
+            for j in range(10):
+                if row[j] == "0":
+                    k = j
+                    size = 1
+                    while k < 10 and row[k] == "0" and size <= target_size:
+                        if size <= board.rows[i] and size == target_size:
+                            ships.append([[i, j], [i, k]])
+                        size += 1
+                        k += 1
+
+        for i in range(10):
+            col = tiles[:, i]
+            for j in range(10):
+                if col[j] == "0":
+                    k = j
+                    size = 1
+                    while k < 10 and col[k] == "0" and size <= target_size:
+                        if size <= board.cols[i] and size == target_size:
+                            ships.append([[j, i], [k, i]])
+                        size += 1
+                        k += 1
 
         if target_size == 4:
             return ships
 
         combinations = self.get_combinations(ships, ship_amount)
-        actions = self.remove_incompatible(combinations)
+        actions = self.remove_incompatible(state, combinations)
 
         return actions
 
@@ -244,10 +248,10 @@ class Bimaru(Problem):
         'state' passado como argumento. A ação a executar deve ser uma
         das presentes na lista obtida pela execução de
         self.actions(state)."""
-        tiles = state.board.tiles.copy()
+        tiles = copy.deepcopy(state.board.tiles)
         rows = state.board.rows.copy()
         cols = state.board.cols.copy()
-        ships = state.ships.copy()
+        ships = copy.deepcopy(state.ships)
 
         for ship in action:
             start = ship[0]

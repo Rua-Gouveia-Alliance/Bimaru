@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SCRIPT="bimaru.py"
+SCRIPT="bimaruv2.py"
 TEST_DIR="instances-students"
 OUTPUT_DIR="instances-students"
 
