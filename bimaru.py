@@ -133,8 +133,22 @@ class Bimaru(Problem):
             cols[start[1]] -= end[0] - start[0] + 1
 
     def overlap(self, ship1: list, ship2: list) -> bool:
-        # TODO
-        pass
+        ship1_area = [
+            [ship1[0][0] - 1, ship1[0][1] - 1],
+            [ship1[1][0] + 1, ship1[1][1] + 1]
+        ]
+
+        ship2_area = [
+            [ship2[0][0] - 1, ship2[0][1] - 1],
+            [ship2[1][0] + 1, ship2[1][1] + 1]
+        ]
+
+        if ship1_area[1][0] < ship2_area[0][0] or ship1_area[0][0] > ship2_area[1][0]:
+            return False
+        if ship1_area[1][1] < ship2_area[0][1] or ship1_area[0][1] > ship2_area[1][1]:
+            return False
+
+        return True
 
     def remove_incompatible(self, state: BimaruState, actions: list) -> list:
         possible_actions = []
