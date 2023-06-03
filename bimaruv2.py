@@ -111,29 +111,33 @@ class Bimaru(Problem):
         """O construtor especifica o estado inicial."""
         super().__init__(BimaruState(board))
 
-    def get_combinations(self, array, size):
+    def get_combinations(self, lst, size):
+        if size == 0 or len(lst) < size:
+            return []
+        
         combinations = []
-
-        def generate_combinations(curr_comb, remaining, start):
-            if len(curr_comb) == size:
-                combinations.append(curr_comb)
-                return
-
-            for i in range(start, len(remaining)):
-                generate_combinations(curr_comb + [remaining[i]], remaining[i + 1:], i + 1)
-
-        generate_combinations([], array, 0)
+        self.generate_combinations(lst, size, 0, [], combinations)
         return combinations
+
+    def generate_combinations(self, lst, size, start, current_combination, combinations):
+        if size == 0:
+            combinations.append(current_combination.copy())
+            return
+        
+        for i in range(start, len(lst)):
+            current_combination.append(lst[i])
+            self.generate_combinations(lst, size - 1, i + 1, current_combination, combinations)
+            current_combination.pop()
 
     def overlap(self, ship1, ship2) -> bool:
         ship1_area = (
-            (ship1[0][0] - 1, ship1[0][1] - 1),
-            (ship1[1][0] + 1, ship1[1][1] + 1)
+            (max(ship1[0][0] - 1, 0), max(ship1[0][1] - 1, 0)),
+            (min(ship1[1][0] + 1, 9), min(ship1[1][1] + 1, 9))
         )
 
         ship2_area = (
-            (ship2[0][0] - 1, ship2[0][1] - 1),
-            (ship2[1][0] + 1, ship2[1][1] + 1)
+            (ship2[0][0], ship2[0][1]),
+            (ship2[1][0], ship2[1][1])
         )
 
         if ship1_area[1][0] < ship2_area[0][0] or ship1_area[0][0] > ship2_area[1][0]:
@@ -146,12 +150,20 @@ class Bimaru(Problem):
     def remove_incompatible(self, state, actions):
         possible_actions = []
         for action in actions:
+            compatible = True
+            
             action_size = len(action)
             for i in range(action_size - 1):
                 for j in range(i + 1, action_size):
                     if self.overlap(action[i], action[j]):
-                        continue
+                        compatible = False
+                        break
+                if not compatible:
+                    break
 
+            if not compatible:
+                continue
+            
             rows = state.board.rows.copy()
             cols = state.board.cols.copy()
             for ship in action:
@@ -165,13 +177,17 @@ class Bimaru(Problem):
                     for i in range(start[1], end[1] + 1):
                         cols[i] -= 1
                 elif start[1] == end[1]:
+                    cols[start[1]] -= end[0] - start[0] + 1
                     for i in range(start[0], end[0] + 1):
                         rows[i] -= 1
-                    cols[start[1]] -= end[0] - start[0] + 1
 
             for i in range(10):
                 if rows[i] < 0 or cols[i] < 0:
-                    continue
+                        compatible = False
+                        break
+
+            if not compatible:
+                continue
 
             possible_actions.append(action)
 
@@ -244,47 +260,48 @@ class Bimaru(Problem):
             for j in range(min_col, max_col + 1):
                 tiles[i][j] = "."
 
-    def result(self, state: BimaruState, action):
+    def result(self, state: BimaruState, actions):
         """Retorna o estado resultante de executar a 'action' sobre
         'state' passado como argumento. A ação a executar deve ser uma
         das presentes na lista obtida pela execução de
         self.actions(state)."""
-        start = action[0]
-        end = action[1]
-
         board = state.board
 
         tiles = copy.deepcopy(board.tiles)
         rows = board.rows.copy()
         cols = board.cols.copy()
         ships = board.ships.copy()
-        self.fill_ship_area(tiles, action)
 
-        if start[0] == end[0] and start[1] == end[1]:
-            tiles[start[0]][start[1]] = "c"
-            rows[start[0]] -= 1
-            cols[start[1]] -= 1
-            ships.remove(1)
-        elif start[0] == end[0]:
-            tiles[start[0]][start[1]] = "l"
-            for j in range(start[1] + 1, end[1]):
-                tiles[start[0]][j] = "m"
-            tiles[end[0]][end[1]] = "r"
+        for action in actions:
+            start = action[0]
+            end = action[1]
+            self.fill_ship_area(tiles, action)
 
-            rows[start[0]] -= end[1] - start[1] + 1
-            for i in range(start[1], end[1] + 1):
-                cols[i] -= 1
-            ships.remove(end[1] - start[1] + 1)
-        elif start[1] == end[1]:
-            tiles[start[0]][start[1]] = "t"
-            for i in range(start[0] + 1, end[0]):
-                tiles[i][start[1]] = "m"
-            tiles[end[0]][end[1]] = "b"
+            if start[0] == end[0] and start[1] == end[1]:
+                tiles[start[0]][start[1]] = "c"
+                rows[start[0]] -= 1
+                cols[start[1]] -= 1
+                ships.remove(1)
+            elif start[0] == end[0]:
+                tiles[start[0]][start[1]] = "l"
+                for j in range(start[1] + 1, end[1]):
+                    tiles[start[0]][j] = "m"
+                tiles[end[0]][end[1]] = "r"
 
-            for i in range(start[0], end[0] + 1):
-                rows[i] -= 1
-            cols[start[1]] -= end[0] - start[0] + 1
-            ships.remove(end[0] - start[0] + 1)
+                rows[start[0]] -= end[1] - start[1] + 1
+                for i in range(start[1], end[1] + 1):
+                    cols[i] -= 1
+                ships.remove(end[1] - start[1] + 1)
+            elif start[1] == end[1]:
+                tiles[start[0]][start[1]] = "t"
+                for i in range(start[0] + 1, end[0]):
+                    tiles[i][start[1]] = "m"
+                tiles[end[0]][end[1]] = "b"
+
+                for i in range(start[0], end[0] + 1):
+                    rows[i] -= 1
+                cols[start[1]] -= end[0] - start[0] + 1
+                ships.remove(end[0] - start[0] + 1)
 
         new_board = Board(cols, rows, tiles, board.hints, ships)
         return BimaruState(new_board)
