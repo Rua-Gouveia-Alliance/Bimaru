@@ -10,12 +10,7 @@ import sys
 import copy
 from search import (
     Problem,
-    Node,
-    astar_search,
-    breadth_first_tree_search,
-    depth_first_tree_search,
-    greedy_search,
-    recursive_best_first_search,
+    depth_first_tree_search
 )
 
 
@@ -66,20 +61,6 @@ class Board:
 
             if self.rows[i] == 0:
                 self.fill_row(i)
-
-    def get_value(self, row: int, col: int) -> str:
-        """Devolve o valor na respetiva posição do tabuleiro."""
-        return self.tiles[row][col]
-
-    def adjacent_vertical_values(self, row: int, col: int) -> (str, str):
-        """Devolve os valores imediatamente acima e abaixo,
-        respectivamente."""
-        return (self.tiles[row - 1][col], self.tiles[row + 1][col])
-
-    def adjacent_horizontal_values(self, row: int, col: int) -> (str, str):
-        """Devolve os valores imediatamente à esquerda e à direita,
-        respectivamente."""
-        return (self.tiles[row][col - 1], self.tiles[row][col + 1])
 
     @staticmethod
     def parse_instance():
