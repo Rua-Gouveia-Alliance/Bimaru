@@ -193,6 +193,7 @@ class Bimaru(Problem):
             elif tiles[hint[0]][hint[1]] != hint[2] and tiles[hint[0]][hint[1]] != "0":
                 return []
 
+        # linhas
         for i in range(10):
             for j in range(10):
                 if tiles[i][j] == "0":
@@ -212,6 +213,7 @@ class Bimaru(Problem):
                         size += 1
                         k += 1
 
+        # colunas
         for i in range(10):
             for j in range(10):
                 if tiles[j][i] == "0":
@@ -249,7 +251,7 @@ class Bimaru(Problem):
             for j in range(min_col, max_col + 1):
                 tiles[i][j] = "."
 
-    def result(self, state: BimaruState, actions):
+    def result(self, state: BimaruState, action):
         """Retorna o estado resultante de executar a 'action' sobre
         'state' passado como argumento. A ação a executar deve ser uma
         das presentes na lista obtida pela execução de
@@ -261,10 +263,10 @@ class Bimaru(Problem):
         cols = board.cols.copy()
         ships = board.ships.copy()
 
-        for action in actions:
-            start = action[0]
-            end = action[1]
-            self.fill_ship_area(tiles, action)
+        for ship in action:
+            start = ship[0]
+            end = ship[1]
+            self.fill_ship_area(tiles, ship)
 
             if start[0] == end[0] and start[1] == end[1]:
                 tiles[start[0]][start[1]] = "c"
