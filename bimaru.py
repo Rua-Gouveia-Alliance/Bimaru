@@ -214,24 +214,25 @@ class Bimaru(Problem):
                         k += 1
 
         # colunas
-        for i in range(10):
-            for j in range(10):
-                if tiles[j][i] == "0":
-                    k = j
-                    size = 1
-                    while k < 10 and tiles[k][i] == "0" and size <= target_size:
-                        not_wanted = [
-                            (i, k, "w"),
-                            (i, k, "c"),
-                            (i, k, "l"),
-                            (i, k, "r"),
-                        ]
-                        if (k, i, tiles[k][i]) in not_wanted:
-                            break
-                        if size <= board.cols[i] and size == target_size:
-                            actions.append(((j, i), (k, i)))
-                        size += 1
-                        k += 1
+        if target_size != 1:
+            for i in range(10):
+                for j in range(10):
+                    if tiles[j][i] == "0":
+                        k = j
+                        size = 1
+                        while k < 10 and tiles[k][i] == "0" and size <= target_size:
+                            not_wanted = [
+                                (i, k, "w"),
+                                (i, k, "c"),
+                                (i, k, "l"),
+                                (i, k, "r"),
+                            ]
+                            if (k, i, tiles[k][i]) in not_wanted:
+                                break
+                            if size <= board.cols[i] and size == target_size:
+                                actions.append(((j, i), (k, i)))
+                            size += 1
+                            k += 1
 
         combinations = self.get_combinations(actions, ship_amount)
         useful_actions = self.remove_incompatible(state, combinations)
